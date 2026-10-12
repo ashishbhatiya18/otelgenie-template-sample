@@ -1,0 +1,16 @@
+#! otelgenie component=keycloak signal=logs targets=vm category=Platforms title="Keycloak server logs, read from its log file"
+#! discover glob=/opt/keycloak/data/log/*.log -> KEYCLOAK_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+# Keycloak writes this file only when file logging is on (log=console,file).
+receivers:
+  filelog/keycloak:
+    include: ["${env:KEYCLOAK_LOG_GLOB:-/opt/keycloak/data/log/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/keycloak:
+      receivers: [filelog/keycloak]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

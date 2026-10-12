@@ -1,0 +1,35 @@
+#! otelgenie component=eks signal=metrics targets=k8s collector=cluster category=Kubernetes title="EKS workload state from kube-state-metrics, and the health of the metrics server"
+#! discover distro=eks
+#! discover svc=kube-state-metrics -> KSM_ENDPOINT as={name}.{ns}.svc:{port} help="host:port where kube-state-metrics is listening"
+#! discover svc=metrics-server -> METRICS_SERVER_ENDPOINT as={name}.{ns}.svc:{port} help="host:port where the metrics server is listening"
+#! docs prometheus=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/prometheusreceiver
+
+# The metrics server's own endpoint reports how the metrics server is doing.
+# What pods and nodes use comes from the kubelets, in node-metrics.yaml.
+receivers:
+  prometheus/eks_ksm:
+    config:
+      scrape_configs:
+        - job_name: kube-state-metrics
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["${env:KSM_ENDPOINT:-kube-state-metrics.kube-system.svc:8080}"]
+  prometheus/eks_metrics_server:
+    config:
+      scrape_configs:
+        - job_name: metrics-server
+          scrape_interval: 30s
+          scheme: https
+          authorization:
+            credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          tls_config:
+            insecure_skip_verify: true
+          static_configs:
+            - targets: ["${env:METRICS_SERVER_ENDPOINT:-metrics-server.kube-system.svc:443}"]
+
+service:
+  pipelines:
+    metrics/eks_cluster:
+      receivers: [prometheus/eks_ksm, prometheus/eks_metrics_server]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

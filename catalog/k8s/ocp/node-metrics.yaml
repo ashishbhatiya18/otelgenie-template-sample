@@ -1,0 +1,19 @@
+#! otelgenie component=ocp signal=metrics targets=k8s collector=node category=Kubernetes title="OpenShift nodes, pods and containers: CPU, memory, filesystem and network, read from each node's kubelet"
+#! discover distro=ocp
+#! discover pod=status.hostIP -> K8S_NODE_IP
+#! docs kubeletstats=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/kubeletstatsreceiver
+
+receivers:
+  kubeletstats/ocp:
+    auth_type: serviceAccount
+    endpoint: "${env:K8S_NODE_IP}:10250"
+    insecure_skip_verify: true
+    collection_interval: 30s
+    metric_groups: [node, pod, container]
+
+service:
+  pipelines:
+    metrics/ocp_node:
+      receivers: [kubeletstats/ocp]
+      processors: [memory_limiter, k8sattributes, resourcedetection, resource, batch]
+      exporters: [otlphttp]

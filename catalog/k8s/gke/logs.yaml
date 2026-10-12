@@ -1,0 +1,22 @@
+#! otelgenie component=gke signal=logs targets=k8s collector=node category=Kubernetes title="GKE container logs from every pod, read on each node"
+#! discover distro=gke
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/gke:
+    include: [/var/log/pods/*/*/*.log]
+    # Not the collectors' own logs, or one bad line would feed itself.
+    exclude: [/var/log/pods/observability_*/*/*.log]
+    start_at: end
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: container
+        id: container-parser
+
+service:
+  pipelines:
+    logs/gke:
+      receivers: [filelog/gke]
+      processors: [memory_limiter, k8sattributes, resourcedetection, resource, batch]
+      exporters: [otlphttp]

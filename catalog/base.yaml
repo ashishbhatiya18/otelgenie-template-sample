@@ -1,0 +1,50 @@
+#! otelgenie component=base signal=base targets=vm title="Shared exporter, processors and self-monitoring"
+#! discover input=endpoint -> OTEL_GATEWAY_ENDPOINT
+#! discover input=project -> OTELGENIE_PROJECT
+#! discover input=env -> OTELGENIE_ENV
+#! discover input=memory_limit_mib -> OTELGENIE_MEMORY_LIMIT_MIB
+#! discover input=ca_file -> OTELGENIE_CA_FILE
+#! needs credential=OTEL_ACCESS_TOKEN owner="whoever gave you the collector endpoint" note="The access token that goes with the collector endpoint."
+#! docs otlphttp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/exporter/otlphttpexporter
+#! docs memory_limiter=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/processor/memorylimiterprocessor
+#! docs resourcedetection=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/processor/resourcedetectionprocessor
+
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:13133
+
+exporters:
+  otlphttp:
+    endpoint: ${env:OTEL_GATEWAY_ENDPOINT}
+    headers:
+      Authorization: "Bearer ${env:OTEL_ACCESS_TOKEN}"
+    tls:
+      ca_file: "${env:OTELGENIE_CA_FILE:-}"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:OTELGENIE_MEMORY_LIMIT_MIB:-400}
+  resourcedetection:
+    detectors: [system]
+  resource:
+    attributes:
+      - key: service.namespace
+        value: "${env:OTELGENIE_PROJECT}"
+        action: upsert
+      - key: deployment.environment.name
+        value: "${env:OTELGENIE_ENV}"
+        action: upsert
+  batch: {}
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 127.0.0.1
+                port: 8888

@@ -1,0 +1,28 @@
+#! otelgenie component=yugabyte signal=metrics targets=vm category=Databases title="YugabyteDB metrics from the master and tablet server"
+#! discover unit=yb-master
+#! discover unit=yb-tserver
+#! discover port=7000 -> YUGABYTE_MASTER_ENDPOINT as=localhost:{port} help="host:port of the yb-master web server"
+#! discover port=9000 -> YUGABYTE_TSERVER_ENDPOINT as=localhost:{port} help="host:port of the yb-tserver web server"
+#! docs prometheus=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/prometheusreceiver
+
+receivers:
+  prometheus/yugabyte:
+    config:
+      scrape_configs:
+        - job_name: yugabyte-master
+          scrape_interval: 30s
+          metrics_path: /prometheus-metrics
+          static_configs:
+            - targets: ["${env:YUGABYTE_MASTER_ENDPOINT:-localhost:7000}"]
+        - job_name: yugabyte-tserver
+          scrape_interval: 30s
+          metrics_path: /prometheus-metrics
+          static_configs:
+            - targets: ["${env:YUGABYTE_TSERVER_ENDPOINT:-localhost:9000}"]
+
+service:
+  pipelines:
+    metrics/yugabyte:
+      receivers: [prometheus/yugabyte]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

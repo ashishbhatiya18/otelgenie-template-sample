@@ -1,0 +1,14 @@
+#! otelgenie component=host signal=events targets=vm always=true title="Service start, stop and failure events from systemd"
+#! docs journald=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/journaldreceiver
+
+receivers:
+  journald/host-events:
+    matches:
+      - _PID: "1"
+
+service:
+  pipelines:
+    logs/host-events:
+      receivers: [journald/host-events]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

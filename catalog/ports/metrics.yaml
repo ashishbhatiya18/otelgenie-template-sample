@@ -1,0 +1,16 @@
+#! otelgenie component=ports signal=metrics targets=vm check=true title="Port checks: is something answering on a host and port"
+#! discover ask="Which host:port should be checked? For example localhost:5432" -> PORTS_CHECK_TARGET
+#! docs tcpcheck=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/tcpcheckreceiver
+
+receivers:
+  tcpcheck/ports:
+    collection_interval: 60s
+    targets:
+      - endpoint: ${env:PORTS_CHECK_TARGET}
+
+service:
+  pipelines:
+    metrics/ports:
+      receivers: [tcpcheck/ports]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

@@ -1,0 +1,17 @@
+#! otelgenie component=ocp signal=events targets=k8s collector=cluster category=Kubernetes title="OpenShift cluster events: scheduling, restarts, failed pulls"
+#! discover distro=ocp
+#! docs k8sobjects=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/k8sobjectsreceiver
+
+receivers:
+  k8sobjects/ocp:
+    auth_type: serviceAccount
+    objects:
+      - name: events
+        mode: watch
+
+service:
+  pipelines:
+    logs/ocp_events:
+      receivers: [k8sobjects/ocp]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

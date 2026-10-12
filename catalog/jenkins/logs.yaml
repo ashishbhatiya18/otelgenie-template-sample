@@ -1,0 +1,17 @@
+#! otelgenie component=jenkins signal=logs targets=vm category=Platforms title="Jenkins controller logs, read from its log file"
+#! discover glob=/var/log/jenkins/*.log -> JENKINS_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+# Newer Jenkins packages log to the journal instead of this file unless a
+# log file is configured for the service.
+receivers:
+  filelog/jenkins:
+    include: ["${env:JENKINS_LOG_GLOB:-/var/log/jenkins/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/jenkins:
+      receivers: [filelog/jenkins]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

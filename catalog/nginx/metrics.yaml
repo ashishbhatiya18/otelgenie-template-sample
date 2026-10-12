@@ -1,0 +1,21 @@
+#! otelgenie component=nginx signal=metrics targets=vm category=Platforms title="nginx metrics, scraped from nginx-prometheus-exporter"
+#! discover unit=nginx
+#! discover port=9113 -> NGINX_EXPORTER_ENDPOINT as=localhost:{port} help="host:port where nginx-prometheus-exporter is listening"
+#! needs exporter=nginx-prometheus-exporter port=9113 owner="the nginx owner" note="nginx-prometheus-exporter must be running next to nginx, reading a stub_status location. Ask the nginx owner to enable stub_status, install the exporter and confirm the port."
+#! docs prometheus=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/prometheusreceiver
+
+receivers:
+  prometheus/nginx:
+    config:
+      scrape_configs:
+        - job_name: nginx
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["${env:NGINX_EXPORTER_ENDPOINT:-localhost:9113}"]
+
+service:
+  pipelines:
+    metrics/nginx:
+      receivers: [prometheus/nginx]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

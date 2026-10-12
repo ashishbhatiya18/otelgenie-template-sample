@@ -1,0 +1,20 @@
+#! otelgenie component=nginx-docker signal=traces targets=vm category=Platforms title="nginx in Docker: request traces, sent by nginx's OpenTelemetry module over OTLP"
+#! discover ask="Which address of this server can the nginx container reach? Usually Docker's bridge address, 172.17.0.1 (see: ip addr show docker0)" -> NGINX_DOCKER_BRIDGE_ADDRESS
+#! needs handout=ngx_otel_module note="Traces only appear once nginx sends them. Ask the nginx owner to use an image with ngx_otel_module (the nginx:otel tags have it) and add to the http block of nginx.conf: otel_exporter { endpoint 172.17.0.1:4322; } and otel_trace on; using the address given here, then recreate the container."
+#! docs otlp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/receiver/otlpreceiver
+
+# A container cannot reach the server's localhost, so this listens on the
+# address Docker gives the server on its bridge network, and on a port of its
+# own. The nginx module speaks gRPC only.
+receivers:
+  otlp/nginx-docker:
+    protocols:
+      grpc:
+        endpoint: "${env:NGINX_DOCKER_BRIDGE_ADDRESS:-172.17.0.1}:4322"
+
+service:
+  pipelines:
+    traces/nginx-docker:
+      receivers: [otlp/nginx-docker]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

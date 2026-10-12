@@ -1,0 +1,15 @@
+#! otelgenie component=nginx signal=logs targets=vm category=Platforms title="nginx access and error logs"
+#! discover glob=/var/log/nginx/*.log -> NGINX_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/nginx:
+    include: ["${env:NGINX_LOG_GLOB:-/var/log/nginx/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/nginx:
+      receivers: [filelog/nginx]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

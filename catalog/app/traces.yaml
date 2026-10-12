@@ -1,0 +1,18 @@
+#! otelgenie component=app signal=traces targets=vm category=Applications title="Application traces, received from apps on this server over OTLP"
+#! needs handout=otlp note="Traces only appear once the application sends them. Give the application owner these settings: OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 and OTEL_SERVICE_NAME=<name of the service>, then restart the application."
+#! docs otlp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/receiver/otlpreceiver
+
+receivers:
+  otlp/app:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+service:
+  pipelines:
+    traces/app:
+      receivers: [otlp/app]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

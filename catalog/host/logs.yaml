@@ -1,0 +1,13 @@
+#! otelgenie component=host signal=logs targets=vm always=true title="System journal, warnings and above"
+#! docs journald=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/journaldreceiver
+
+receivers:
+  journald/host:
+    priority: warning
+
+service:
+  pipelines:
+    logs/host:
+      receivers: [journald/host]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

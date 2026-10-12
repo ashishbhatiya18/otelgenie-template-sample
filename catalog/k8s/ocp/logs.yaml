@@ -1,0 +1,22 @@
+#! otelgenie component=ocp signal=logs targets=k8s collector=node category=Kubernetes title="OpenShift container logs from every pod, read on each node"
+#! discover distro=ocp
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/ocp:
+    include: [/var/log/pods/*/*/*.log]
+    # Not the collectors' own logs, or one bad line would feed itself.
+    exclude: [/var/log/pods/observability_*/*/*.log]
+    start_at: end
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: container
+        id: container-parser
+
+service:
+  pipelines:
+    logs/ocp:
+      receivers: [filelog/ocp]
+      processors: [memory_limiter, k8sattributes, resourcedetection, resource, batch]
+      exporters: [otlphttp]

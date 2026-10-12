@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "name": "otel-starter",
+  "collector_version": "0.162.0",
+  "settings": {
+    "memory_max_mb": 512,
+    "cpu_quota_percent": 50,
+    "service_user": "observability",
+    "stale_discovery_days": 3
+  },
+  "artifacts": [
+    {
+      "kind": "package",
+      "os": "rhel",
+      "arch": "x86_64",
+      "file": "otelcol-contrib_0.162.0_linux_amd64.rpm",
+      "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_amd64.rpm"
+    },
+    {
+      "kind": "package",
+      "os": "rhel",
+      "arch": "aarch64",
+      "file": "otelcol-contrib_0.162.0_linux_arm64.rpm",
+      "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_arm64.rpm"
+    },
+    {
+      "kind": "package",
+      "os": "debian",
+      "arch": "x86_64",
+      "file": "otelcol-contrib_0.162.0_linux_amd64.deb",
+      "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_amd64.deb"
+    },
+    {
+      "kind": "package",
+      "os": "debian",
+      "arch": "aarch64",
+      "file": "otelcol-contrib_0.162.0_linux_arm64.deb",
+      "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.162.0/otelcol-contrib_0.162.0_linux_arm64.deb"
+    },
+    {
+      "kind": "addon",
+      "name": "kube-state-metrics",
+      "file": "kube-state-metrics/examples/standard",
+      "url": "https://github.com/kubernetes/kube-state-metrics/tree/v2.15.0/examples/standard",
+      "check": "kubectl get deployments,services -A -l app.kubernetes.io/name=kube-state-metrics",
+      "note": "It goes in the namespace kube-system, where the collector looks for it. GKE may already run one; the script detects it and then installs nothing.",
+      "builtin_on": [
+        "ocp"
+      ]
+    },
+    {
+      "kind": "addon",
+      "name": "the metrics server",
+      "file": "metrics-server.yaml",
+      "url": "https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.7.2/components.yaml",
+      "check": "kubectl get apiservice v1beta1.metrics.k8s.io && kubectl top nodes",
+      "note": "On EKS it is usually missing.",
+      "builtin_on": [
+        "gke",
+        "ocp"
+      ]
+    },
+    {
+      "kind": "addon",
+      "name": "cert-manager",
+      "file": "cert-manager.yaml",
+      "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml",
+      "check": "kubectl get crd certificates.cert-manager.io && kubectl -n cert-manager get deployments",
+      "note": "Wait for its three deployments to be ready before installing the operator.",
+      "skip_on": [
+        "ocp"
+      ]
+    },
+    {
+      "kind": "operator",
+      "file": "opentelemetry-operator.yaml",
+      "url": "https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.160.0/opentelemetry-operator.yaml"
+    },
+    {
+      "kind": "image",
+      "url": "ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.160.0"
+    },
+    {
+      "kind": "image",
+      "url": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.162.0"
+    },
+    {
+      "kind": "image",
+      "url": "ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.31.1",
+      "language": "java"
+    },
+    {
+      "kind": "image",
+      "url": "ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b0",
+      "language": "python"
+    },
+    {
+      "kind": "image",
+      "url": "ghcr.io/open-telemetry/opentelemetry-go-instrumentation/autoinstrumentation-go:v0.21.0",
+      "language": "go"
+    }
+  ],
+  "reference": {}
+}

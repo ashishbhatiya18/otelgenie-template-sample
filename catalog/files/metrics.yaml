@@ -1,0 +1,18 @@
+#! otelgenie component=files signal=metrics targets=vm check=true title="Directory and file monitoring: size, age and count"
+#! discover ask="Which files or directories should be watched? Give one glob pattern, for example /var/backups/*.tar.gz" -> FILES_WATCH_GLOB
+#! docs filestats=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filestatsreceiver
+
+receivers:
+  filestats/files:
+    include: ${env:FILES_WATCH_GLOB}
+    collection_interval: 60s
+    metrics:
+      file.count:
+        enabled: true
+
+service:
+  pipelines:
+    metrics/files:
+      receivers: [filestats/files]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

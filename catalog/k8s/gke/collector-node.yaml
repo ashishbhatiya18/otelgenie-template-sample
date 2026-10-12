@@ -1,0 +1,56 @@
+#! otelgenie component=gke signal=any targets=k8s role=collector collector=node category=Kubernetes title="GKE: one collector on every node, run by the OpenTelemetry Operator"
+#! docs operator=https://github.com/open-telemetry/opentelemetry-operator/blob/v0.160.0/docs/api/opentelemetrycollectors.md
+
+# otelgenie fills spec.config: the shared base, then the config below, then every
+# selected file marked collector=node. Everything else here is used as written.
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelgenie-node
+  namespace: observability
+spec:
+  mode: daemonset
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.162.0
+  serviceAccount: otelgenie-collector
+  # Values and secrets, created by apply.sh from otelcol.env.
+  envFrom:
+    - secretRef:
+        name: otelgenie-env
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  tolerations:
+    - operator: Exists
+  # Pod log files on the node are only readable by root.
+  securityContext:
+    runAsUser: 0
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+    - name: ca
+      configMap:
+        name: otelgenie-ca
+        optional: true
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+    - name: ca
+      mountPath: /etc/otelgenie/ca
+      readOnly: true
+  config:
+    # The collector on each node does not send to the destination itself. It
+    # hands everything to the cluster's collector, which is the only one that
+    # leaves the cluster.
+    exporters:
+      otlphttp:
+        endpoint: http://otelgenie-cluster-collector.observability.svc:4318
+    processors:
+      resourcedetection:
+        detectors: [env, gcp]
+        timeout: 5s

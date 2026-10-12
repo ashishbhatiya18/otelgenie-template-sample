@@ -1,0 +1,17 @@
+#! otelgenie component=nats signal=logs targets=vm category=Platforms title="NATS server logs, read from its log file"
+#! discover glob=/var/log/nats/*.log -> NATS_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+# The NATS server writes a file only when log_file is set in its
+# configuration; without it the log goes to the journal.
+receivers:
+  filelog/nats:
+    include: ["${env:NATS_LOG_GLOB:-/var/log/nats/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/nats:
+      receivers: [filelog/nats]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

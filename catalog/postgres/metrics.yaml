@@ -1,0 +1,22 @@
+#! otelgenie component=postgres signal=metrics targets=vm category=Databases title="PostgreSQL metrics, scraped from postgres_exporter"
+#! discover unit=postgresql
+#! discover port=5432
+#! discover port=9187 -> POSTGRES_EXPORTER_ENDPOINT as=localhost:{port} help="host:port where postgres_exporter is listening"
+#! needs exporter=postgres_exporter port=9187 owner="the database owner" note="postgres_exporter must be running next to PostgreSQL with a read-only monitoring user (role pg_monitor). Ask the database owner to install it and confirm the port."
+#! docs prometheus=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/prometheusreceiver
+
+receivers:
+  prometheus/postgres:
+    config:
+      scrape_configs:
+        - job_name: postgres
+          scrape_interval: 30s
+          static_configs:
+            - targets: ["${env:POSTGRES_EXPORTER_ENDPOINT:-localhost:9187}"]
+
+service:
+  pipelines:
+    metrics/postgres:
+      receivers: [prometheus/postgres]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

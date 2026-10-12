@@ -1,0 +1,17 @@
+#! otelgenie component=eks signal=events targets=k8s collector=cluster category=Kubernetes title="EKS cluster events: scheduling, restarts, failed pulls"
+#! discover distro=eks
+#! docs k8sobjects=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/k8sobjectsreceiver
+
+receivers:
+  k8sobjects/eks:
+    auth_type: serviceAccount
+    objects:
+      - name: events
+        mode: watch
+
+service:
+  pipelines:
+    logs/eks_events:
+      receivers: [k8sobjects/eks]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

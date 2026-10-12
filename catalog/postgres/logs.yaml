@@ -1,0 +1,16 @@
+#! otelgenie component=postgres signal=logs targets=vm category=Databases title="PostgreSQL server logs"
+#! discover glob=/var/lib/pgsql/data/log/*.log -> POSTGRES_LOG_GLOB
+#! discover glob=/var/log/postgresql/*.log -> POSTGRES_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/postgres:
+    include: ["${env:POSTGRES_LOG_GLOB:-/var/log/postgresql/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/postgres:
+      receivers: [filelog/postgres]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

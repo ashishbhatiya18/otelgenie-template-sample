@@ -1,0 +1,15 @@
+#! otelgenie component=aerospike signal=logs targets=vm category=Databases title="Aerospike server logs"
+#! discover glob=/var/log/aerospike/*.log -> AEROSPIKE_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/aerospike:
+    include: ["${env:AEROSPIKE_LOG_GLOB:-/var/log/aerospike/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/aerospike:
+      receivers: [filelog/aerospike]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

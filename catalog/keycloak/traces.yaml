@@ -1,0 +1,19 @@
+#! otelgenie component=keycloak signal=traces targets=vm category=Platforms title="Keycloak request traces, sent by Keycloak's built-in tracing over OTLP"
+#! needs handout=keycloak-tracing note="Traces only appear once Keycloak sends them. Ask the Keycloak owner to start it with tracing-enabled=true and tracing-endpoint=http://localhost:4320 (Keycloak 26 or later), then restart it."
+#! docs otlp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/receiver/otlpreceiver
+
+# A port of its own, so this does not collide with the application receiver
+# on 4317 or nginx on 4319 when they share a server. Keycloak sends gRPC by
+# default.
+receivers:
+  otlp/keycloak:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4320
+
+service:
+  pipelines:
+    traces/keycloak:
+      receivers: [otlp/keycloak]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

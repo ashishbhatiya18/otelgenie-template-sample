@@ -1,0 +1,15 @@
+#! otelgenie component=yugabyte signal=logs targets=vm category=Databases title="YugabyteDB master and tablet server logs"
+#! discover glob=/home/yugabyte/*/logs/*.log -> YUGABYTE_LOG_GLOB
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/yugabyte:
+    include: ["${env:YUGABYTE_LOG_GLOB:-/home/yugabyte/*/logs/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/yugabyte:
+      receivers: [filelog/yugabyte]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

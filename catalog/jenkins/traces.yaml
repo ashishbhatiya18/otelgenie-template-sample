@@ -1,0 +1,19 @@
+#! otelgenie component=jenkins signal=traces targets=vm category=Platforms title="Jenkins build and pipeline traces, sent by its OpenTelemetry plugin over OTLP"
+#! needs handout=jenkins-opentelemetry-plugin note="Traces only appear once Jenkins sends them. Ask the Jenkins owner to install the OpenTelemetry plugin and set its OTLP endpoint to http://localhost:4321 under Manage Jenkins, System."
+#! docs otlp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/receiver/otlpreceiver
+
+# A port of its own, so this does not collide with the application receiver
+# on 4317, nginx on 4319 or Keycloak on 4320 when they share a server. The
+# plugin sends gRPC to an http:// endpoint.
+receivers:
+  otlp/jenkins:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4321
+
+service:
+  pipelines:
+    traces/jenkins:
+      receivers: [otlp/jenkins]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

@@ -1,0 +1,16 @@
+#! otelgenie component=nginx-docker signal=logs targets=vm category=Platforms title="nginx in Docker: access and error logs, read from a directory the container writes to on this server"
+#! discover glob=/var/log/nginx-docker/*.log -> NGINX_DOCKER_LOG_GLOB
+#! needs handout=nginx-docker-logs note="The nginx image sends its logs to the container's output, where they are mixed with every other container's. Ask the nginx owner to mount a directory of this server over the container's log directory, for example -v /var/log/nginx-docker:/var/log/nginx, so nginx writes access.log and error.log there."
+#! docs filelog=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/filelogreceiver
+
+receivers:
+  filelog/nginx-docker:
+    include: ["${env:NGINX_DOCKER_LOG_GLOB:-/var/log/nginx-docker/*.log}"]
+    start_at: end
+
+service:
+  pipelines:
+    logs/nginx-docker:
+      receivers: [filelog/nginx-docker]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

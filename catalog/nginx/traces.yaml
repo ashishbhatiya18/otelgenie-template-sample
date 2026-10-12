@@ -1,0 +1,18 @@
+#! otelgenie component=nginx signal=traces targets=vm category=Platforms title="nginx request traces, sent by nginx's OpenTelemetry module over OTLP"
+#! needs handout=ngx_otel_module note="Traces only appear once nginx sends them. Ask the nginx owner to load ngx_otel_module and add to the http block of nginx.conf: otel_exporter { endpoint localhost:4319; } and otel_trace on; then reload nginx."
+#! docs otlp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/receiver/otlpreceiver
+
+# A port of its own, so this does not collide with the application receiver
+# on 4317 when both are on one server. The nginx module speaks gRPC only.
+receivers:
+  otlp/nginx:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4319
+
+service:
+  pipelines:
+    traces/nginx:
+      receivers: [otlp/nginx]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

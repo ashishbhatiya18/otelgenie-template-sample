@@ -1,0 +1,29 @@
+#! otelgenie component=app signal=metrics targets=vm category=Applications title="Request count, errors and duration for every service, split by the headers chosen from the API descriptions"
+#! discover input=header_dimensions -> OTELGENIE_HEADER_DIMENSIONS
+#! docs spanmetrics=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/connector/spanmetricsconnector
+
+# Turns the traces applications send into metrics. The list of headers to
+# split by comes from the project's API descriptions; it is empty when none
+# were chosen, which still gives the metrics per service and operation.
+receivers:
+  otlp/app:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+connectors:
+  spanmetrics/app:
+    dimensions: ${env:OTELGENIE_HEADER_DIMENSIONS:-[]}
+
+service:
+  pipelines:
+    traces/app_spanmetrics:
+      receivers: [otlp/app]
+      processors: [memory_limiter]
+      exporters: [spanmetrics/app]
+    metrics/app_spanmetrics:
+      receivers: [spanmetrics/app]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

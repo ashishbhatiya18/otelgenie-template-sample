@@ -1,0 +1,82 @@
+#! otelgenie component=base signal=base targets=k8s title="Shared exporter and processors for the collectors in a cluster"
+#! discover input=endpoint -> OTEL_GATEWAY_ENDPOINT
+#! discover input=project -> OTELGENIE_PROJECT
+#! discover input=env -> OTELGENIE_ENV
+#! discover input=target -> OTELGENIE_CLUSTER
+#! discover input=memory_limit_mib -> OTELGENIE_MEMORY_LIMIT_MIB
+#! discover input=ca_file -> OTELGENIE_CA_FILE
+#! discover pod=spec.nodeName -> K8S_NODE_NAME
+#! needs credential=OTEL_ACCESS_TOKEN owner="whoever gave you the collector endpoint" note="The access token that goes with the collector endpoint."
+#! docs otlphttp=https://github.com/open-telemetry/opentelemetry-collector/tree/v0.162.0/exporter/otlphttpexporter
+#! docs k8sattributes=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/processor/k8sattributesprocessor
+#! docs resourcedetection=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/processor/resourcedetectionprocessor
+
+# Merged into both collectors in a cluster. The resourcedetection detectors
+# are set per kind of cluster, in that kind's collector-*.yaml.
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+exporters:
+  otlphttp:
+    endpoint: ${env:OTEL_GATEWAY_ENDPOINT}
+    headers:
+      Authorization: "Bearer ${env:OTEL_ACCESS_TOKEN}"
+    tls:
+      ca_file: "${env:OTELGENIE_CA_FILE:-}"
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:OTELGENIE_MEMORY_LIMIT_MIB:-400}
+  # Only used by the collector on each node, which sees that node's pods.
+  k8sattributes:
+    auth_type: serviceAccount
+    filter:
+      node_from_env_var: K8S_NODE_NAME
+    extract:
+      metadata:
+        - k8s.namespace.name
+        - k8s.pod.name
+        - k8s.pod.uid
+        - k8s.node.name
+        - k8s.deployment.name
+        - k8s.statefulset.name
+        - k8s.daemonset.name
+        - k8s.container.name
+    pod_association:
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+      - sources:
+          - from: connection
+  resourcedetection:
+    detectors: [env]
+  resource:
+    attributes:
+      - key: service.namespace
+        value: "${env:OTELGENIE_PROJECT}"
+        action: upsert
+      - key: deployment.environment.name
+        value: "${env:OTELGENIE_ENV}"
+        action: upsert
+      - key: k8s.cluster.name
+        value: "${env:OTELGENIE_CLUSTER}"
+        action: upsert
+  batch: {}
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888

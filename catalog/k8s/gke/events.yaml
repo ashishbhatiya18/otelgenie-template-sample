@@ -1,0 +1,17 @@
+#! otelgenie component=gke signal=events targets=k8s collector=cluster category=Kubernetes title="GKE cluster events: scheduling, restarts, failed pulls"
+#! discover distro=gke
+#! docs k8sobjects=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/k8sobjectsreceiver
+
+receivers:
+  k8sobjects/gke:
+    auth_type: serviceAccount
+    objects:
+      - name: events
+        mode: watch
+
+service:
+  pipelines:
+    logs/gke_events:
+      receivers: [k8sobjects/gke]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

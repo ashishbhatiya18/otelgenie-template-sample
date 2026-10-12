@@ -1,0 +1,22 @@
+#! otelgenie component=host signal=metrics targets=vm always=true title="Server health: CPU, memory, disk, filesystem, network, load"
+#! docs hostmetrics=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/hostmetricsreceiver
+
+receivers:
+  hostmetrics/host:
+    collection_interval: 30s
+    scrapers:
+      cpu: {}
+      memory: {}
+      load: {}
+      disk: {}
+      filesystem: {}
+      network: {}
+      paging: {}
+      processes: {}
+
+service:
+  pipelines:
+    metrics/host:
+      receivers: [hostmetrics/host]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

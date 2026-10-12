@@ -1,0 +1,23 @@
+#! otelgenie component=gke signal=any targets=k8s role=manifest when=servers category=Kubernetes title="GKE: an Ingress through which servers outside the cluster reach the cluster's collector"
+#! docs ingress=https://kubernetes.io/docs/concepts/services-networking/ingress/
+
+# Only written when something in the project runs on servers outside the
+# cluster. It answers on whatever address the cluster's default ingress class
+# gives it; add ingressClassName, a host or a tls section here if yours needs
+# them.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otelgenie-gateway
+  namespace: observability
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: otelgenie-cluster-collector
+                port:
+                  number: 4318

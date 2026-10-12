@@ -1,0 +1,76 @@
+#! otelgenie component=eks signal=any targets=k8s role=collector collector=cluster category=Kubernetes title="EKS: one collector for the cluster as a whole, run by the OpenTelemetry Operator"
+#! needs credential=OTEL_ACCESS_TOKEN owner="whoever gave you the collector endpoint" note="The access token that goes with the collector endpoint."
+#! docs operator=https://github.com/open-telemetry/opentelemetry-operator/blob/v0.160.0/docs/api/opentelemetrycollectors.md
+
+# otelgenie fills spec.config: the shared base, then the config below, then every
+# selected file marked collector=cluster. Everything else here is used as written.
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelgenie-cluster
+  namespace: observability
+spec:
+  mode: deployment
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.162.0
+  serviceAccount: otelgenie-collector
+  # Values and secrets, created by apply.sh from otelcol.env.
+  envFrom:
+    - secretRef:
+        name: otelgenie-env
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  replicas: 1
+  volumes:
+    - name: ca
+      configMap:
+        name: otelgenie-ca
+        optional: true
+  volumeMounts:
+    - name: ca
+      mountPath: /etc/otelgenie/ca
+      readOnly: true
+  config:
+    # This collector is the one way out of the cluster. It takes in what the
+    # node collectors and the servers outside the cluster send, and forwards
+    # it to the destination. Senders must present the same access token the
+    # destination asks for, so the Ingress in front of it is not an open door.
+    extensions:
+      bearertokenauth/gateway:
+        scheme: Bearer
+        token: "${env:OTEL_ACCESS_TOKEN}"
+    receivers:
+      otlp/gateway:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+            auth:
+              authenticator: bearertokenauth/gateway
+          http:
+            endpoint: 0.0.0.0:4318
+            auth:
+              authenticator: bearertokenauth/gateway
+    # What arrives was already labelled by the collector that first saw it.
+    service:
+      extensions: [health_check, bearertokenauth/gateway]
+      pipelines:
+        traces/gateway:
+          receivers: [otlp/gateway]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp]
+        metrics/gateway:
+          receivers: [otlp/gateway]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp]
+        logs/gateway:
+          receivers: [otlp/gateway]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp]
+    processors:
+      resourcedetection:
+        detectors: [env, eks]
+        timeout: 5s

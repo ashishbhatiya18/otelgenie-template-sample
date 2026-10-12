@@ -1,0 +1,42 @@
+#! otelgenie component=app signal=any targets=k8s role=manifest category=Applications title="Auto-instrumentation for applications, through the operator's Instrumentation resource"
+#! needs handout=annotation note="Applications are instrumented only where their owner asks for it. Give the application owner this: add the annotation instrumentation.opentelemetry.io/inject-java: observability/otelgenie to the pod template (use inject-python for a Python application; a Go application takes inject-go plus instrumentation.opentelemetry.io/otel-go-auto-target-exe naming its binary), then restart the workload."
+#! discover input=request_headers -> OTELGENIE_REQUEST_HEADERS
+#! discover input=response_headers -> OTELGENIE_RESPONSE_HEADERS
+#! docs instrumentation=https://github.com/open-telemetry/opentelemetry-operator/blob/v0.160.0/README.md#opentelemetry-auto-instrumentation-injection
+
+# Pods that carry an inject annotation naming observability/otelgenie get the agent for
+# their language and send to the collector on the cluster's nodes.
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: otelgenie
+  namespace: observability
+spec:
+  exporter:
+    endpoint: http://otelgenie-node-collector.observability.svc:4318
+  # The headers chosen from the project's API descriptions, recorded on each
+  # request. Java reads the first pair of names, Python the second.
+  env:
+    - name: OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_REQUEST_HEADERS
+      value: "${env:OTELGENIE_REQUEST_HEADERS:-}"
+    - name: OTEL_INSTRUMENTATION_HTTP_SERVER_CAPTURE_RESPONSE_HEADERS
+      value: "${env:OTELGENIE_RESPONSE_HEADERS:-}"
+    - name: OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_REQUEST
+      value: "${env:OTELGENIE_REQUEST_HEADERS:-}"
+    - name: OTEL_INSTRUMENTATION_HTTP_CAPTURE_HEADERS_SERVER_RESPONSE
+      value: "${env:OTELGENIE_RESPONSE_HEADERS:-}"
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_always_on
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.31.1
+  python:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b0
+  # Go is instrumented from outside the process, by a privileged container
+  # the operator adds to the pod. The operator must be started with Go
+  # instrumentation enabled, and each pod must name its binary in the
+  # annotation instrumentation.opentelemetry.io/otel-go-auto-target-exe.
+  go:
+    image: ghcr.io/open-telemetry/opentelemetry-go-instrumentation/autoinstrumentation-go:v0.21.0

@@ -1,0 +1,17 @@
+#! otelgenie component=connectivity signal=metrics targets=vm check=true title="Connectivity: can this server reach a URL it depends on"
+#! discover ask="Which URL should this server be able to reach? For example https://api.internal.example/health" -> CONNECTIVITY_URL
+#! docs httpcheck=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/httpcheckreceiver
+
+receivers:
+  httpcheck/connectivity:
+    collection_interval: 60s
+    targets:
+      - endpoint: ${env:CONNECTIVITY_URL}
+        method: GET
+
+service:
+  pipelines:
+    metrics/connectivity:
+      receivers: [httpcheck/connectivity]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

@@ -1,0 +1,22 @@
+#! otelgenie component=processes signal=metrics targets=vm check=true title="Running processes: CPU, memory, open file descriptors per process"
+#! docs hostmetrics=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/hostmetricsreceiver
+#! docs process-scraper=https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.162.0/receiver/hostmetricsreceiver/internal/scraper/processscraper
+
+receivers:
+  hostmetrics/processes:
+    collection_interval: 60s
+    scrapers:
+      process:
+        mute_process_all_errors: true
+        metrics:
+          process.open_file_descriptors:
+            enabled: true
+          process.threads:
+            enabled: true
+
+service:
+  pipelines:
+    metrics/processes:
+      receivers: [hostmetrics/processes]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]
